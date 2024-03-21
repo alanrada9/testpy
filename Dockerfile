@@ -6,10 +6,10 @@ WORKDIR /app
 
 # Install system dependencies if needed (optional, depending on your application's requirements)
 RUN apt-get update && \
-    apt-get install -y git build-essential python3-dev python3-pip
+    apt-get install -y git build-essential python3-dev python3-pip python3-smbus i2c-tools
 
 # Install Flask and other required Python packages
-RUN pip3 install Flask adafruit-blinka
+RUN pip3 install Flask adafruit-blinka adafruit-circuitpython-dht adafruit-circuitpython-charlcd
 
 # Install Adafruit_Python_DHT and RPi-LCD library dependencies
 RUN apt-get install -y python3-smbus i2c-tools
