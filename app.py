@@ -71,29 +71,4 @@ def get_sensor_data():
         else:
             return jsonify({'error': 'Invalid humidity value'}), 500
     except Exception as e:
-        print(f"Exception occurred: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/health', methods=['GET'])
-def health_check():
-    try:
-        # Simulate health check failure for testing
-        success = False  # Replace with actual health check logic
-        
-        if success:
-            # Display health status on LCD
-            lcd.clear()
-            lcd.text("Status: OK", 1)
-            return jsonify({'status': 'alive'}), 200
-        else:
-            # Display health status on LCD
-            lcd.clear()
-            lcd.text("Status: Failed", 1)
-            return jsonify({'error': 'Health check failed'}), 400
-    except Exception as e:
-        print(f"Exception occurred during health check: {e}")
-        return jsonify({'error': str(e)}), 500
-
-if __name__ == '__main__':
-    # Run the Flask app on host 0.0.0.0 and port 5000
-    app.run(host='0.0.0.0', port=5000)
+        print(f"Exception 
