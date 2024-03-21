@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from rpi_lcd import LCD
 import Adafruit_DHT
-import RPi.GPIO as GPIO  # Import the GPIO module
+import RPi.GPIO as GPIO
 import time
 
 app = Flask(__name__)
@@ -13,18 +13,19 @@ lcd = LCD()
 DHT_SENSOR = Adafruit_DHT.DHT22
 DHT_PIN = 4
 
-# Simulate light sensor data for testing
-LIGHT_SENSOR_PIN = 17  # GPIO pin connected to the light sensor (adjust as needed)
+# Light sensor pin (adjust as needed)
+LIGHT_SENSOR_PIN = 17
 
 # Initialize GPIO
-GPIO.setmode(GPIO.BCM)  # Use the BCM numbering scheme for GPIO pins
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(LIGHT_SENSOR_PIN, GPIO.IN)  # Setup light sensor pin as input
 
 def read_dht_sensor():
     humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     return humidity, temperature
 
 def read_light_intensity():
-    # Read light intensity from LDR sensor
+    # Read light intensity from light sensor
     light_value = 0
     for _ in range(10):  # Take multiple readings for accuracy
         light_value += GPIO.input(LIGHT_SENSOR_PIN)
