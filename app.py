@@ -30,13 +30,13 @@ def read_light_intensity():
         light_values.append(GPIO.input(LIGHT_SENSOR_PIN))
         time.sleep(0.1)
     average_light_value = sum(light_values) / len(light_values)
-    return average_light_value
+    return average_light_value * 100  # Convert to percentage
 
 def display_sensor_data(temperature, humidity, light_intensity):
     lcd.clear()
     lcd.text(f"Temp: {temperature:.1f}C", 1)
     lcd.text(f"Humidity: {humidity:.1f}%", 2)
-    lcd.text(f"Light: {light_intensity:.1f}%", 3)
+    lcd.text(f"Light: {light_intensity:.2f}%", 3)
 
 @app.route('/sensor_data', methods=['GET'])
 def get_sensor_data():
@@ -47,11 +47,12 @@ def get_sensor_data():
         if humidity is not None and 0 <= humidity <= 100:
             temperature_str = f"{temperature:.2f}"
             humidity_str = f"{humidity:.2f}"
+            light_intensity_str = f"{light_intensity:.2f}%"
             
             data = {
                 'temperature': temperature_str,
                 'humidity': humidity_str,
-                'light_intensity': f"{light_intensity:.2f}%"
+                'light_intensity': light_intensity_str
             }
 
             display_sensor_data(temperature, humidity, light_intensity)
