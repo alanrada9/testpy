@@ -1,39 +1,29 @@
-# Use the official Python runtime for ARMv7 as a base image
+# Use an official Python runtime for ARMv7 as a base image
 FROM arm32v7/python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Update package lists and install necessary system dependencies
+# Install system dependencies if needed
 RUN apt-get update && \
-    apt-get install -y git build-essential python3-dev python3-pip python3-smbus i2c-tools
+    apt-get install -y git build-essential python3-dev
 
-# Upgrade pip to the latest version
-RUN pip3 install --upgrade pip
+# Clone the Adafruit CircuitPython CharLCD library from GitHub
+RUN git clone https://github.com/adafruit/Adafruit_CircuitPython_CharLCD.git
 
-# Install Flask and other required Python packages using pip
-RUN pip3 install Flask adafruit-blinka adafruit-circuitpython-charlcd RPi.GPIO
+# Copy the required files from the Adafruit_CircuitPython_CharLCD library
+# Adjust the paths according to the library structure
+COPY Adafruit_CircuitPython_CharLCD /usr/local/lib/python3.9/site-packages/Adafruit_CircuitPython_CharLCD
 
-# Install Adafruit Python DHT library
-RUN pip3 install Adafruit_DHT==1.4.0
+# Clone the Adafruit CircuitPython DHT library from GitHub
+RUN git clone https://github.com/adafruit/Adafruit_CircuitPython_DHT.git
 
-# Verify Adafruit DHT library installation
-RUN python3 -c "import Adafruit_DHT; print('Adafruit DHT library version:', Adafruit_DHT.__version__)"
+# Copy the required files from the Adafruit_CircuitPython_DHT library
+# Adjust the paths according to the library structure
+COPY Adafruit_CircuitPython_DHT /usr/local/lib/python3.9/site-packages/Adafruit_CircuitPython_DHT
 
-# Clone the Adafruit DHT GitHub repository (optional for troubleshooting)
-# RUN git clone https://github.com/adafruit/Adafruit_Python_DHT.git
-
-# Change directory to Adafruit_Python_DHT (optional for troubleshooting)
-# WORKDIR /app/Adafruit_Python_DHT
-
-# Install the Adafruit Python DHT library with --force-pi (optional for troubleshooting)
-# RUN python3 setup.py install --force-pi
-
-# Move back to the working directory
-# WORKDIR /app
-
-# Install RPi-LCD library using pip3
-RUN pip3 install rpi-lcd
+# Install Flask and other required Python packages
+RUN pip3 install Flask
 
 # Copy your Flask application code into the container
 COPY . /app
