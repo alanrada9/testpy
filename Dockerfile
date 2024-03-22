@@ -17,11 +17,8 @@ RUN pip3 install Flask adafruit-blinka adafruit-circuitpython-charlcd RPi.GPIO
 # Clone Adafruit CircuitPython DHT library from GitHub
 RUN git clone https://github.com/adafruit/Adafruit_CircuitPython_DHT.git
 
-# Change directory to Adafruit_CircuitPython_DHT
-WORKDIR /app/Adafruit_CircuitPython_DHT
-
 # Install Adafruit CircuitPython DHT library from the cloned repository
-RUN python3 setup.py install
+RUN cd Adafruit_CircuitPython_DHT && python3 setup.py install
 
 # Move back to the working directory
 WORKDIR /app
