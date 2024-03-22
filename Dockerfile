@@ -1,29 +1,33 @@
-# Use an official Python runtime for ARMv7 as a base image
+# Use the official Python runtime for ARMv7 as a base image
 FROM arm32v7/python:3.9-slim
 
 # Set the working directory inside the container
 WORKDIR /app
 
-# Install system dependencies if needed
+# Update package lists and install necessary system dependencies
 RUN apt-get update && \
-    apt-get install -y git build-essential python3-dev
+    apt-get install -y git build-essential python3-dev python3-pip python3-smbus i2c-tools
 
-# Clone the Adafruit CircuitPython CharLCD library from GitHub
-RUN git clone https://github.com/adafruit/Adafruit_CircuitPython_CharLCD.git
+# Upgrade pip to the latest version
+RUN pip3 install --upgrade pip
 
-# Copy the required files from the Adafruit_CircuitPython_CharLCD library
-# Adjust the paths according to the library structure
-COPY Adafruit_CircuitPython_CharLCD /usr/local/lib/python3.9/site-packages/Adafruit_CircuitPython_CharLCD
+# Install Flask and other required Python packages using pip
+RUN pip3 install Flask adafruit-blinka adafruit-circuitpython-charlcd RPi.GPIO
 
-# Clone the Adafruit CircuitPython DHT library from GitHub
+# Clone Adafruit CircuitPython DHT library from GitHub
 RUN git clone https://github.com/adafruit/Adafruit_CircuitPython_DHT.git
 
-# Copy the required files from the Adafruit_CircuitPython_DHT library
-# Adjust the paths according to the library structure
-COPY Adafruit_CircuitPython_DHT /usr/local/lib/python3.9/site-packages/Adafruit_CircuitPython_DHT
+# Change directory to Adafruit_CircuitPython_DHT
+WORKDIR /app/Adafruit_CircuitPython_DHT
 
-# Install Flask and other required Python packages
-RUN pip3 install Flask
+# Install Adafruit CircuitPython DHT library from the cloned repository
+RUN python3 setup.py install
+
+# Move back to the working directory
+WORKDIR /app
+
+# Install RPi-LCD library using pip3
+RUN pip3 install rpi-lcd
 
 # Copy your Flask application code into the container
 COPY . /app
