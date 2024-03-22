@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 from rpi_lcd import LCD
 import Adafruit_DHT
-from gpiozero import LightSensor
+import RPi.GPIO as GPIO
 import time
 import asyncio
 
@@ -12,9 +12,10 @@ lcd = LCD()
 
 # Inicializa el sensor DHT (DHT22)
 DHT_SENSOR = Adafruit_DHT.DHT22
+DHT_PIN = 4  # Pin GPIO para el sensor DHT22
 
-# Inicializa el sensor de luz (deteción automática del pin GPIO)
-light_sensor = LightSensor()
+# Especifica el pin GPIO para el sensor de luz
+LIGHT_SENSOR_PIN = 17  # Puedes ajustar este valor según la configuración de tu hardware
 
 # Variables para almacenar los valores anteriores de temperatura, luz y tiempo
 previous_temperature = None
@@ -22,11 +23,18 @@ previous_light_value = None
 last_health_check = time.time()  # Tiempo de la última comprobación de salud
 
 async def read_dht_sensor():
-    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_SENSOR.pin)
+    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     return humidity, temperature
 
 async def read_light_intensity():
-    return light_sensor.value * 100  # Convierte a porcentaje
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(LIGHT_SENSOR_PIN, GPIO.IN)
+    light_values = []
+    for _ in range(10):  # Toma múltiples lecturas para mayor precisión
+        light_values.append(GPIO.input(LIGHT_SENSOR_PIN))
+        time.sleep(0.1)
+    average_light_value = sum(light_values) / len(light_values)
+    return average_light_value * 100  # Convierte a porcentaje
 
 def display_sensor_data(temperature, humidity, light_intensity):
     lcd.clear()
@@ -74,6 +82,21 @@ async def get_light_data():
             return jsonify(data), 200
         else:
             return jsonify({'error': 'Light intensity not updated'}), 500
+    except Exception as e:
+        print(f"Exception occurred: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/temperature_variation', methods=['GET'])
+async def get_temperature_variation():
+    global previous_temperature
+    try:
+        humidity, temperature = await read_dht_sensor()
+        if previous_temperature is not None and temperature is not None and 0 <= humidity <= 100:
+            temperature_change = temperature - previous_temperature
+            previous_temperature = temperature  # Actualizar la temperatura anterior
+            return jsonify({'temperature_change': f"{temperature_change:.2f}"}), 200
+        else:
+            return jsonify({'error': 'Invalid humidity value or no previous temperature data available'}), 500
     except Exception as e:
         print(f"Exception occurred: {e}")
         return jsonify({'error': str(e)}), 500
