@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
-from rpi_lcd import LCD
 import Adafruit_DHT
 import RPi.GPIO as GPIO
+from rpi_lcd import LCD
 import time
 
 app = Flask(__name__)
@@ -100,6 +100,7 @@ def get_temperature_variation():
         print(f"Exception occurred: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/health', methods=['GET'])
 def health_check():
     global last_health_check
     try:
@@ -108,17 +109,12 @@ def health_check():
         if current_time - last_health_check >= 300:  # Realizar la comprobación de salud cada 5 minutos
             # Aquí puedes agregar la lógica de la comprobación de salud
             last_health_check = current_time  # Actualizar el tiempo de la última comprobación de salud
-            return {'status': 'alive'}, 200
+            return jsonify({'status': 'alive'}), 200
         else:
-            return {'status': 'alive'}, 200  # Si no es tiempo de comprobar, simplemente devuelve el estado vivo
+            return jsonify({'status': 'alive'}), 200  # Si no es tiempo de comprobar, simplemente devuelve el estado vivo
     except Exception as e:
         print(f"Exception occurred during health check: {e}")
-        return {'error': str(e)}, 500
-
-@app.route('/health', methods=['GET'])
-def handle_health_check():
-    result, status = health_check()
-    return jsonify(result), status
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
