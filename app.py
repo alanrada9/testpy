@@ -1,81 +1,102 @@
-from flask import Flask, jsonify, abort
+from flask import Flask, jsonify
 from rpi_lcd import LCD
 import Adafruit_DHT
+from gpiozero import LightSensor
 import time
+import asyncio
 
 app = Flask(__name__)
 
-# Initialize LCD
+# Inicializa el LCD
 lcd = LCD()
 
-# Initialize DHT sensor (DHT22)
+# Inicializa el sensor DHT (DHT22)
 DHT_SENSOR = Adafruit_DHT.DHT22
-DHT_PIN = 4
 
-def read_sensor_data():
-    retries = 3  # Number of retries for sensor reading
-    for _ in range(retries):
-        try:
-            humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
-            return temperature, humidity
-        except RuntimeError as e:
-            print(f"Error reading DHT sensor: {e}")
-            time.sleep(2)  # Wait before retrying
-    raise RuntimeError("Unable to read sensor data after multiple retries")
+# Inicializa el sensor de luz (deteción automática del pin GPIO)
+light_sensor = LightSensor()
 
-def display_on_lcd(message):
-    # Split the message into lines
-    lines = message.split('\n')
-    
-    # Display each line on the LCD
-    for i, line in enumerate(lines):
-        lcd.text(line, i + 1)  # Adjust line number (1-indexed)
+# Variables para almacenar los valores anteriores de temperatura, luz y tiempo
+previous_temperature = None
+previous_light_value = None
+last_health_check = time.time()  # Tiempo de la última comprobación de salud
 
-def read_light_status():
-    # Placeholder function to simulate reading light status
-    hour = time.localtime().tm_hour
-    light_status = 'High' if 6 <= hour < 18 else 'Low'
-    return light_status
+async def read_dht_sensor():
+    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_SENSOR.pin)
+    return humidity, temperature
+
+async def read_light_intensity():
+    return light_sensor.value * 100  # Convierte a porcentaje
+
+def display_sensor_data(temperature, humidity, light_intensity):
+    lcd.clear()
+    lcd.text(f"Temp: {temperature:.1f}C", 1)
+    lcd.text(f"Humidity: {humidity:.1f}%", 2)
+    lcd.text(f"Light: {light_intensity:.2f}%", 3)
 
 @app.route('/sensor_data', methods=['GET'])
-def get_sensor_data():
+async def get_sensor_data():
+    global previous_temperature
     try:
-        temperature, humidity = read_sensor_data()
-        light_status = read_light_status()
+        humidity, temperature = await read_dht_sensor()
 
-        # Check if temperature and humidity are not None before formatting
-        if temperature is not None and humidity is not None:
+        if humidity is not None and 0 <= humidity <= 100:
+            temperature_str = f"{temperature:.2f}"
+            humidity_str = f"{humidity:.2f}"
+            
             data = {
-                'temperature': temperature,
-                'humidity': humidity,
-                'light_status': light_status
+                'temperature': temperature_str,
+                'humidity': humidity_str,
             }
-            # Format message for display on LCD
-            display_message = f"Temp: {temperature:.1f}C\nHumidity: {humidity:.1f}%\nLight: {light_status}"
-            display_on_lcd(display_message)
+
+            display_sensor_data(temperature, humidity, None)
             return jsonify(data), 200
         else:
-            return jsonify({'error': 'Unable to read sensor data'}), 500
+            return jsonify({'error': 'Invalid humidity value. Humidity should be between 0 and 100'}), 500
     except Exception as e:
         print(f"Exception occurred: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/health', methods=['GET'])
-def health_check():
+@app.route('/light_data', methods=['GET'])
+async def get_light_data():
+    global previous_light_value
     try:
-        # Simulate health check failure for testing
-        success = False  # Replace with actual health check logic
-        
-        if success:
-            return jsonify({'status': 'alive'}), 200
+        light_intensity = await read_light_intensity()
+
+        if light_intensity is not None:
+            light_intensity_str = f"{light_intensity:.2f}%"
+            
+            data = {
+                'light_intensity': light_intensity_str,
+            }
+
+            display_sensor_data(None, None, light_intensity)
+            return jsonify(data), 200
         else:
-            # Return 400 if health check is not successful
-            abort(400, description='Health check failed')
+            return jsonify({'error': 'Light intensity not updated'}), 500
+    except Exception as e:
+        print(f"Exception occurred: {e}")
+        return jsonify({'error': str(e)}), 500
+
+async def health_check():
+    global last_health_check
+    try:
+        current_time = time.time()  # Obtener el tiempo actual en segundos
+
+        if current_time - last_health_check >= 300:  # Realizar la comprobación de salud cada 5 minutos
+            # Aquí puedes agregar la lógica de la comprobación de salud
+            last_health_check = current_time  # Actualizar el tiempo de la última comprobación de salud
+            return {'status': 'alive'}, 200
+        else:
+            return {'status': 'alive'}, 200  # Si no es tiempo de comprobar, simplemente devuelve el estado vivo
     except Exception as e:
         print(f"Exception occurred during health check: {e}")
-        abort(500)
+        return {'error': str(e)}, 500
+
+@app.route('/health', methods=['GET'])
+async def handle_health_check():
+    result, status = await health_check()
+    return jsonify(result), status
 
 if __name__ == '__main__':
-    # Run the Flask app on host 0.0.0.0 and port 5000
-    app.run(host='0.0.0.0', port=5002)
-
+    asyncio.run(app.run(host='0.0.0.0', port=5000))
