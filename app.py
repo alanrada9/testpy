@@ -1,40 +1,34 @@
 from flask import Flask, jsonify
 from rpi_lcd import LCD
 import Adafruit_DHT
-import RPi.GPIO as GPIO
+from gpiozero import LightSensor
 import time
 import asyncio
 
 app = Flask(__name__)
 
-# Inicializa el LCD
+# Initialize LCD
 lcd = LCD()
 
-# Inicializa el sensor DHT (DHT22)
+# Initialize DHT sensor (DHT22)
 DHT_SENSOR = Adafruit_DHT.DHT22
-DHT_PIN = 4  # Pin GPIO para el sensor DHT22
+DHT_PIN = 4  # GPIO pin for DHT22 sensor
 
-# Especifica el pin GPIO para el sensor de luz
-LIGHT_SENSOR_PIN = 17  # Puedes ajustar este valor según la configuración de tu hardware
+# Specify GPIO pin for light sensor
+LIGHT_SENSOR_PIN = 17  # Adjust this value according to your hardware setup
 
-# Variables para almacenar los valores anteriores de temperatura, luz y tiempo
+# Variables to store previous temperature, light, and time values
 previous_temperature = None
 previous_light_value = None
-last_health_check = time.time()  # Tiempo de la última comprobación de salud
+last_health_check = time.time()  # Time of last health check
 
 async def read_dht_sensor():
     humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     return humidity, temperature
 
 async def read_light_intensity():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(LIGHT_SENSOR_PIN, GPIO.IN)
-    light_values = []
-    for _ in range(10):  # Toma múltiples lecturas para mayor precisión
-        light_values.append(GPIO.input(LIGHT_SENSOR_PIN))
-        time.sleep(0.1)
-    average_light_value = sum(light_values) / len(light_values)
-    return average_light_value * 100  # Convierte a porcentaje
+    light_sensor = LightSensor(LIGHT_SENSOR_PIN)
+    return light_sensor.value * 100  # Convert to percentage
 
 def display_sensor_data(temperature, humidity, light_intensity):
     lcd.clear()
@@ -93,7 +87,7 @@ async def get_temperature_variation():
         humidity, temperature = await read_dht_sensor()
         if previous_temperature is not None and temperature is not None and 0 <= humidity <= 100:
             temperature_change = temperature - previous_temperature
-            previous_temperature = temperature  # Actualizar la temperatura anterior
+            previous_temperature = temperature  # Update previous temperature
             return jsonify({'temperature_change': f"{temperature_change:.2f}"}), 200
         else:
             return jsonify({'error': 'Invalid humidity value or no previous temperature data available'}), 500
@@ -104,14 +98,14 @@ async def get_temperature_variation():
 async def health_check():
     global last_health_check
     try:
-        current_time = time.time()  # Obtener el tiempo actual en segundos
+        current_time = time.time()
 
-        if current_time - last_health_check >= 300:  # Realizar la comprobación de salud cada 5 minutos
-            # Aquí puedes agregar la lógica de la comprobación de salud
-            last_health_check = current_time  # Actualizar el tiempo de la última comprobación de salud
+        if current_time - last_health_check >= 300:  # Perform health check every 5 minutes
+            # Add health check logic here
+            last_health_check = current_time  # Update time of last health check
             return {'status': 'alive'}, 200
         else:
-            return {'status': 'alive'}, 200  # Si no es tiempo de comprobar, simplemente devuelve el estado vivo
+            return {'status': 'alive'}, 200  # If it's not time to check, simply return alive status
     except Exception as e:
         print(f"Exception occurred during health check: {e}")
         return {'error': str(e)}, 500
