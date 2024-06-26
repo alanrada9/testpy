@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-deployment
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-container
+        image: alanrada9/temperature:1.15
+        ports:
+        - containerPort: 5001
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - mountPath: /sys/class/gpio
+          name: gpio
+        - mountPath: /dev/i2c-1
+          name: i2c
+      volumes:
+      - name: gpio
+        hostPath:
+          path: /sys/class/gpio
+      - name: i2c
+        hostPath:
+          path: /dev/i2c-1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+  namespace: default
+spec:
+  selector:
+    app: my-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5001
+  type: LoadBalancer

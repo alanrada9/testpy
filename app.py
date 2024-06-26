@@ -1,7 +1,10 @@
 from flask import Flask, jsonify
+import subprocess
 import Adafruit_DHT
 import RPi.GPIO as GPIO
 import time
+import uuid
+
 
 app = Flask(__name__)
 
@@ -27,6 +30,33 @@ def read_light_intensity():
         time.sleep(0.1)
     average_light_value = sum(light_values) / len(light_values)
     return average_light_value * 100  # Convert to percentage
+
+def get_pi_info():
+    # Obtener información del sistema
+    system_info = {
+        'hostname': subprocess.check_output(['hostname']).strip().decode('utf-8'),
+        'serial_number': subprocess.check_output(['cat', '/proc/cpuinfo']).strip().decode('utf-8').split('\n')[-1].split(':')[-1].strip()
+    }
+
+    # Obtener información específica de la Raspberry Pi
+    try:
+        pi_info = {
+            'model': subprocess.check_output(['cat', '/sys/firmware/devicetree/base/model']).strip().decode('utf-8'),
+            'revision': subprocess.check_output(['cat', '/proc/cpuinfo']).strip().decode('utf-8').split('\n')[8].split(':')[-1].strip(),
+            'firmware_version': subprocess.check_output(['vcgencmd', 'version']).strip().decode('utf-8'),
+            'mac_address': ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0,2*6,2)][::-1])
+        }
+
+        # Obtener dispositivos conectados
+        usb_devices, network_devices = get_connected_devices()
+        pi_info['usb_devices'] = usb_devices
+        pi_info['network_devices'] = network_devices
+
+    except Exception as e:
+        pi_info = {'error': str(e)}
+
+    return system_info, pi_info
+
 
 @app.route('/sensor_data', methods=['GET'])
 def get_sensor_data():
@@ -103,6 +133,26 @@ def health_check():
     except Exception as e:
         print(f"Exception occurred during health check: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/pi-info', methods=['GET'])
+def get_pi_info_route():
+    try:
+        system_info, pi_info = get_pi_info()
+
+        if 'error' in pi_info:
+            return jsonify({'error': pi_info['error']}), 500
+        else:
+            return jsonify({
+                'system_info': system_info,
+                'pi_info': pi_info
+            }), 200
+    except Exception as e:
+        print(f"Exception occurred: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
